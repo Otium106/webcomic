@@ -17,34 +17,27 @@
             align-items: center;
             min-height: 100vh;
         }
-                #comic-container {
+        #comic-container {
             width: 100%;
             display: flex;
             justify-content: center;
-            align-items: flex-start; /* 確保從上方排起 */
+            align-items: center;
             cursor: pointer;
             flex-grow: 1;
-
-            /* 🚫 禁止用戶選中圖片 */
+            
+            /* 防止双击或长按导致图片被选中变蓝 */
             user-select: none;
             -webkit-user-select: none;
             
-            /* 🚫 取消移動端點擊高亮 */
-            -webkit-tap-highlight-color: transparent; 
-
-            /* 💡 1. 這裡控制「頂部留空」的距離，數字越大，圖片越靠下 */
-            padding-top: 40px; 
-            /* 💡 2. 這裡控制「底部留空」的距離，防止圖片和下面的按鈕黏在一起 */
-            padding-bottom: 40px; 
+            /* 去除移动端点击时的半透明蓝色高亮 */
+            -webkit-tap-highlight-color: transparent;
         }
-        
         #comic-image {
-            /* 💡 3. 這兩行是關鍵！強制圖片寬度 100% 撐滿，達到左右貼邊的效果 */
-            width: 100%;
-            max-width: 100%; 
-            
+            max-width: 100%;
             max-height: 85vh;
             object-fit: contain;
+            
+            /* 额外保险：防止图片本身在某些旧系统被拉动或选中 */
             -webkit-user-drag: none; 
         }
         #welcome-tips {
@@ -105,24 +98,15 @@
         let imageFiles = []; 
         let currentIndex = 0; 
 
-        // 初始化/重置页面的函数
         function resetViewer(message) {
             imageFiles = [];
             currentIndex = 0;
-            
-            // 重置输入框
             document.getElementById('file-input').value = "";
-            
-            // 隐藏图片，显示欢迎提示
             document.getElementById('comic-image').style.display = "none";
             document.getElementById('comic-image').src = "";
             document.getElementById('welcome-tips').style.display = "block";
-            
-            // 禁用按钮
             document.getElementById('prev-btn').disabled = true;
             document.getElementById('next-btn').disabled = true;
-            
-            // 更新提示文字
             document.getElementById('page-info').innerText = message || "请选择包含漫画图片的 ZIP 压缩包";
         }
 
@@ -154,10 +138,8 @@
                     return;
                 }
 
-                // 按照文件名排序
                 imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
 
-                // 成功解压后，隐藏欢迎语，启用按钮并显示第一张图
                 document.getElementById('welcome-tips').style.display = "none";
                 document.getElementById('prev-btn').disabled = false;
                 document.getElementById('next-btn').disabled = false;
@@ -169,7 +151,6 @@
             }
         });
 
-        // 渲染指定页码的图片
         async function showPage(index) {
             if (index < 0 || index >= imageFiles.length) return;
             
@@ -193,24 +174,20 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // 上一页
         function prevPage() {
             if (currentIndex > 0) {
                 showPage(currentIndex - 1);
             }
         }
 
-        // 下一页
         function nextPage() {
             if (currentIndex < imageFiles.length - 1) {
                 showPage(currentIndex + 1);
             } else {
-                // 已经是最后一页，再次点击则直接回到初始选择状态
                 resetViewer("漫画已看完！已为您重置，可重新选择新漫画。");
             }
         }
 
-        // 点击屏幕图片区域翻页
         function handleContainerClick(event) {
             if (imageFiles.length === 0) return;
             
@@ -224,7 +201,6 @@
             }
         }
 
-        // 键盘左右方向键监听
         document.addEventListener('keydown', (event) => {
             if (imageFiles.length === 0) return;
             if (event.key === 'ArrowRight') {
