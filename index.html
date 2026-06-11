@@ -17,26 +17,29 @@
             align-items: center;
             min-height: 100vh;
         }
-        #controls {
-            margin: 20px 0;
-            z-index: 10;
-            background: rgba(0,0,0,0.7);
-            padding: 10px 20px;
-            border-radius: 8px;
-            text-align: center;
-        }
         #comic-container {
-            max-width: 100%;
+            width: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer; /* 鼠标变成手型，提示可以点击 */
             user-select: none;
+            flex-grow: 1; /* 让图片区域占满剩余空间 */
         }
         #comic-image {
             max-width: 100%;
             max-height: 85vh; /* 保证图片不会超出屏幕太多 */
             object-fit: contain;
+        }
+        #controls {
+            margin: 20px 0;
+            z-index: 10;
+            background: rgba(0,0,0,0.7);
+            padding: 15px 20px;
+            border-radius: 8px;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
         }
         .btn {
             background: #4CAF50;
@@ -54,10 +57,19 @@
         #page-info {
             margin-top: 10px;
             font-size: 14px;
+            color: #ccc;
         }
     </style>
 </head>
 <body>
+
+    <div id="comic-container" onclick="handleContainerClick(event)">
+        <div id="welcome-tips" style="padding: 40px; text-align: center; color: #aaa;">
+            <h2>📖 欢迎使用漫画阅览器</h2>
+            <p>请点击下方按钮选择您的漫画 ZIP 压缩包</p>
+        </div>
+        <img id="comic-image" src="" alt="" style="display: none;" />
+    </div>
 
     <div id="controls">
         <input type="file" id="file-input" accept=".zip" />
@@ -68,13 +80,30 @@
         <div id="page-info">请选择包含漫画图片的 ZIP 压缩包</div>
     </div>
 
-    <div id="comic-container" onclick="handleContainerClick(event)">
-        <img id="comic-image" src="" alt="" style="display: none;" />
-    </div>
-
     <script>
         let imageFiles = []; // 存储解压出来的图片文件名和数据
         let currentIndex = 0; // 当前阅读的页码
+
+        // 初始化/重置页面的函数
+        function resetViewer(message) {
+            imageFiles = [];
+            currentIndex = 0;
+            
+            // 重置输入框
+            document.getElementById('file-input').value = "";
+            
+            // 隐藏图片，显示欢迎提示
+            document.getElementById('comic-image').style.display = "none";
+            document.getElementById('comic-image').src = "";
+            document.getElementById('welcome-tips').style.display = "block";
+            
+            // 禁用按钮
+            document.getElementById('prev-btn').disabled = true;
+            document.getElementById('next-btn').disabled = true;
+            
+            // 更新提示文字
+            document.getElementById('page-info').innerText = message || "请选择包含漫画图片的 ZIP 压缩包";
+        }
 
         document.getElementById('file-input').addEventListener('change', async (event) => {
             const file = event.target.files[0];
@@ -82,20 +111,18 @@
 
             const pageInfo = document.getElementById('page-info');
             pageInfo.innerText = "正在解压漫画，请稍候...";
+            document.getElementById('welcome-tips').style.display = "none";
             
             imageFiles = [];
             currentIndex = 0;
 
             try {
-                // 使用 JSZip 加载压缩包
                 const zip = await JSZip.loadAsync(file);
-                
-                // 筛选出压缩包内的图片文件（支持 jpg, jpeg, png, webp 等）
                 const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
                 
                 for (let filename in zip.files) {
                     const isImage = validExtensions.some(ext => filename.toLowerCase().endsWith(ext));
-                    const isMacFolder = filename.includes('__MACOSX'); // 排除Mac自动生成的缓存文件夹
+                    const isMacFolder = filename.includes('__MACOSX'); 
                     
                     if (isImage && !isMacFolder) {
                         imageFiles.push(zip.files[filename]);
@@ -103,92 +130,11 @@
                 }
 
                 if (imageFiles.length === 0) {
-                    pageInfo.innerText = "压缩包内没有找到支持的图片文件！";
+                    resetViewer("压缩包内没有找到支持的图片文件！");
                     return;
                 }
 
-                // 按照文件名排序，确保漫画顺序正确
+                // 按照文件名排序
                 imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
 
-                // 更新按钮状态并显示第一张图
-                document.getElementById('prev-btn').disabled = false;
-                document.getElementById('next-btn').disabled = false;
-                showPage(0);
-
-            } catch (error) {
-                console.error(error);
-                pageInfo.innerText = "解压失败，请确保文件是标准的 ZIP 格式。";
-            }
-        });
-
-        // 渲染指定页码的图片
-        async function showPage(index) {
-            if (index < 0 || index >= imageFiles.length) return;
-            
-            currentIndex = index;
-            const fileObject = imageFiles[currentIndex];
-            const imgElement = document.getElementById('comic-image');
-            const pageInfo = document.getElementById('page-info');
-
-            pageInfo.innerText = `正在加载第 ${currentIndex + 1} / ${imageFiles.length} 页 (${fileObject.name})`;
-
-            // 将压缩包内的二进制数据转为 base64 或者是 Blob URL 以便在 <img> 标签中显示
-            const blob = await fileObject.async("blob");
-            const imageUrl = URL.createObjectURL(blob);
-
-            // 释放上一个创建的 ObjectURL 以防内存泄漏
-            if (imgElement.src && imgElement.src.startsWith('blob:')) {
-                URL.revokeObjectURL(imgElement.src);
-            }
-
-            imgElement.src = imageUrl;
-            imgElement.style.display = "block";
-            
-            // 滚动到顶部，方便阅读新的一页
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        // 上一页
-        function prevPage() {
-            if (currentIndex > 0) {
-                showPage(currentIndex - 1);
-            } else {
-                alert("已经是第一页了！");
-            }
-        }
-
-        // 下一页
-        function nextPage() {
-            if (currentIndex < imageFiles.length - 1) {
-                showPage(currentIndex + 1);
-            } else {
-                alert("已经看完最后一页了！");
-            }
-        }
-
-        // 点击屏幕图片区域翻页：点击右侧 2/3 下一页，点击左侧 1/3 上一页
-        function handleContainerClick(event) {
-            if (imageFiles.length === 0) return;
-            
-            const containerWidth = window.innerWidth;
-            const clickX = event.clientX;
-
-            if (clickX > containerWidth / 3) {
-                nextPage();
-            } else {
-                prevPage();
-            }
-        }
-
-        // 键盘左右方向键监听，方便电脑看漫画
-        document.addEventListener('keydown', (event) => {
-            if (imageFiles.length === 0) return;
-            if (event.key === 'ArrowRight') {
-                nextPage();
-            } else if (event.key === 'ArrowLeft') {
-                prevPage();
-            }
-        });
-    </script>
-</body>
-</html>
+                // 启用按钮并
