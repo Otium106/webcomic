@@ -21,7 +21,7 @@
             width: 100%;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start; /* 💡 1. 這裡改成 flex-start，圖片才會乖乖從上面排起 */
             cursor: pointer;
             flex-grow: 1;
 
@@ -31,6 +31,9 @@
             
             /* 🚫 解決方法 2：取消移動端點擊高亮的藍色陰影 */
             -webkit-tap-highlight-color: transparent; 
+
+            /* 💡 2. 這裡加這一行！數字越大，圖片就會越靠下 */
+            padding-top: 50px; 
         }
         #comic-image {
             max-width: 100%;
