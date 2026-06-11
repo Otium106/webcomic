@@ -22,19 +22,24 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            cursor: pointer; /* 鼠标变成手型，提示可以点击 */
+            cursor: pointer;
             user-select: none;
-            flex-grow: 1; /* 让图片区域占满剩余空间 */
+            flex-grow: 1;
         }
         #comic-image {
             max-width: 100%;
-            max-height: 85vh; /* 保证图片不会超出屏幕太多 */
+            max-height: 85vh;
             object-fit: contain;
+        }
+        #welcome-tips {
+            padding: 60px 20px;
+            text-align: center;
+            color: #aaa;
         }
         #controls {
             margin: 20px 0;
             z-index: 10;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.8);
             padding: 15px 20px;
             border-radius: 8px;
             text-align: center;
@@ -64,7 +69,7 @@
 <body>
 
     <div id="comic-container" onclick="handleContainerClick(event)">
-        <div id="welcome-tips" style="padding: 40px; text-align: center; color: #aaa;">
+        <div id="welcome-tips">
             <h2>📖 欢迎使用漫画阅览器</h2>
             <p>请点击下方按钮选择您的漫画 ZIP 压缩包</p>
         </div>
@@ -81,8 +86,8 @@
     </div>
 
     <script>
-        let imageFiles = []; // 存储解压出来的图片文件名和数据
-        let currentIndex = 0; // 当前阅读的页码
+        let imageFiles = []; 
+        let currentIndex = 0; 
 
         // 初始化/重置页面的函数
         function resetViewer(message) {
@@ -111,7 +116,6 @@
 
             const pageInfo = document.getElementById('page-info');
             pageInfo.innerText = "正在解压漫画，请稍候...";
-            document.getElementById('welcome-tips').style.display = "none";
             
             imageFiles = [];
             currentIndex = 0;
@@ -137,4 +141,82 @@
                 // 按照文件名排序
                 imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
 
-                // 启用按钮并
+                // 成功解压后，隐藏欢迎语，启用按钮并显示第一张图
+                document.getElementById('welcome-tips').style.display = "none";
+                document.getElementById('prev-btn').disabled = false;
+                document.getElementById('next-btn').disabled = false;
+                showPage(0);
+
+            } catch (error) {
+                console.error(error);
+                resetViewer("解压失败，请确保文件是标准的 ZIP 格式。");
+            }
+        });
+
+        // 渲染指定页码的图片
+        async function showPage(index) {
+            if (index < 0 || index >= imageFiles.length) return;
+            
+            currentIndex = index;
+            const fileObject = imageFiles[currentIndex];
+            const imgElement = document.getElementById('comic-image');
+            const pageInfo = document.getElementById('page-info');
+
+            pageInfo.innerText = `第 ${currentIndex + 1} / ${imageFiles.length} 页`;
+
+            const blob = await fileObject.async("blob");
+            const imageUrl = URL.createObjectURL(blob);
+
+            if (imgElement.src && imgElement.src.startsWith('blob:')) {
+                URL.revokeObjectURL(imgElement.src);
+            }
+
+            imgElement.src = imageUrl;
+            imgElement.style.display = "block";
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 上一页
+        function prevPage() {
+            if (currentIndex > 0) {
+                showPage(currentIndex - 1);
+            }
+        }
+
+        // 下一页
+        function nextPage() {
+            if (currentIndex < imageFiles.length - 1) {
+                showPage(currentIndex + 1);
+            } else {
+                // 已经是最后一页，再次点击则直接回到初始选择状态
+                resetViewer("漫画已看完！已为您重置，可重新选择新漫画。");
+            }
+        }
+
+        // 点击屏幕图片区域翻页
+        function handleContainerClick(event) {
+            if (imageFiles.length === 0) return;
+            
+            const containerWidth = window.innerWidth;
+            const clickX = event.clientX;
+
+            if (clickX > containerWidth / 3) {
+                nextPage();
+            } else {
+                prevPage();
+            }
+        }
+
+        // 键盘左右方向键监听
+        document.addEventListener('keydown', (event) => {
+            if (imageFiles.length === 0) return;
+            if (event.key === 'ArrowRight') {
+                nextPage();
+            } else if (event.key === 'ArrowLeft') {
+                prevPage();
+            }
+        });
+    </script>
+</body>
+</html>
