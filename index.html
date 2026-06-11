@@ -17,28 +17,35 @@
             align-items: center;
             min-height: 100vh;
         }
-        #comic-container {
+                #comic-container {
             width: 100%;
             display: flex;
             justify-content: center;
-            align-items: flex-start; /* 💡 1. 這裡改成 flex-start，圖片才會乖乖從上面排起 */
+            align-items: flex-start; /* 確保從上方排起 */
             cursor: pointer;
             flex-grow: 1;
 
-            /* 🚫 解決方法 1：禁止用戶選中圖片（防止雙擊變藍） */
+            /* 🚫 禁止用戶選中圖片 */
             user-select: none;
-            -webkit-user-select: none; /* 針對 Safari / iOS */
+            -webkit-user-select: none;
             
-            /* 🚫 解決方法 2：取消移動端點擊高亮的藍色陰影 */
+            /* 🚫 取消移動端點擊高亮 */
             -webkit-tap-highlight-color: transparent; 
 
-            /* 💡 2. 這裡加這一行！數字越大，圖片就會越靠下 */
-            padding-top: 50px; 
+            /* 💡 1. 這裡控制「頂部留空」的距離，數字越大，圖片越靠下 */
+            padding-top: 40px; 
+            /* 💡 2. 這裡控制「底部留空」的距離，防止圖片和下面的按鈕黏在一起 */
+            padding-bottom: 40px; 
         }
+        
         #comic-image {
-            max-width: 100%;
+            /* 💡 3. 這兩行是關鍵！強制圖片寬度 100% 撐滿，達到左右貼邊的效果 */
+            width: 100%;
+            max-width: 100%; 
+            
             max-height: 85vh;
             object-fit: contain;
+            -webkit-user-drag: none; 
         }
         #welcome-tips {
             padding: 60px 20px;
