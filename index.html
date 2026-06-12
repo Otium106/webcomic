@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>本地漫画阅览器</title>
+    <title>智能横竖屏漫画阅览器</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         body {
@@ -21,29 +21,42 @@
             width: 100%;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start; /* 确保从上方排起 */
             cursor: pointer;
             flex-grow: 1;
-            
-            /* 防止双击或长按导致图片被选中变蓝 */
             user-select: none;
             -webkit-user-select: none;
-            
-            /* 去除移动端点击时的半透明蓝色高亮 */
-            -webkit-tap-highlight-color: transparent;
+            -webkit-tap-highlight-color: transparent; 
+
+            /* 💡 上下空隙：数字越大，图片越靠下 */
+            padding-top: 40px; 
+            padding-bottom: 40px; 
         }
-        #comic-image {
+        /* 漫画图片外包裹层：控制单双页排列 */
+        #comic-wrapper {
+            display: flex;
+            width: 100%;
             max-width: 100%;
-            max-height: 85vh;
+            justify-content: center;
+        }
+        .comic-img {
             object-fit: contain;
-            
-            /* 额外保险：防止图片本身在某些旧系统被拉动或选中 */
-            -webkit-user-drag: none; 
+            max-height: 85vh;
+            -webkit-user-drag: none;
+            /* 默认单页模式：左右贴边 */
+            width: 100%;
+            max-width: 100%;
+        }
+        /* 💡 当处于双页模式时，单张图片只占一半宽度 */
+        .double-page .comic-img {
+            width: 50%;
+            max-width: 50%;
         }
         #welcome-tips {
             padding: 60px 20px;
             text-align: center;
             color: #aaa;
+            width: 100%;
         }
         #controls {
             margin: 20px 0;
@@ -79,10 +92,14 @@
 
     <div id="comic-container" onclick="handleContainerClick(event)">
         <div id="welcome-tips">
-            <h2>📖 欢迎使用漫画阅览器</h2>
+            <h2>📖 智能横竖屏漫画阅览器</h2>
             <p>请点击下方按钮选择您的漫画 ZIP 压缩包</p>
+            <p style="font-size: 13px; color: #666;">(竖屏单页显示 / 横屏双页显示)</p>
         </div>
-        <img id="comic-image" src="" alt="" style="display: none;" />
+        <div id="comic-wrapper" class="">
+            <img id="comic-image-left" class="comic-img" src="" alt="" style="display: none;" />
+            <img id="comic-image-right" class="comic-img" src="" alt="" style="display: none;" />
+        </div>
     </div>
 
     <div id="controls">
@@ -98,12 +115,19 @@
         let imageFiles = []; 
         let currentIndex = 0; 
 
+        // 判断当前是否为横屏（宽大于高）
+        function isLandscape() {
+            return window.innerWidth > window.innerHeight;
+        }
+
         function resetViewer(message) {
             imageFiles = [];
             currentIndex = 0;
             document.getElementById('file-input').value = "";
-            document.getElementById('comic-image').style.display = "none";
-            document.getElementById('comic-image').src = "";
+            document.getElementById('comic-image-left').style.display = "none";
+            document.getElementById('comic-image-left').src = "";
+            document.getElementById('comic-image-right').style.display = "none";
+            document.getElementById('comic-image-right').src = "";
             document.getElementById('welcome-tips').style.display = "block";
             document.getElementById('prev-btn').disabled = true;
             document.getElementById('next-btn').disabled = true;
@@ -114,9 +138,7 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            const pageInfo = document.getElementById('page-info');
-            pageInfo.innerText = "正在解压漫画，请稍候...";
-            
+            document.getElementById('page-info').innerText = "正在解压漫画，请稍候...";
             imageFiles = [];
             currentIndex = 0;
 
@@ -138,6 +160,7 @@
                     return;
                 }
 
+                // 文件名天然排序
                 imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
 
                 document.getElementById('welcome-tips').style.display = "none";
@@ -151,43 +174,80 @@
             }
         });
 
+        // 核心渲染函数
         async function showPage(index) {
-            if (index < 0 || index >= imageFiles.length) return;
+            if (imageFiles.length === 0) return;
+            if (index < 0) index = 0;
             
-            currentIndex = index;
-            const fileObject = imageFiles[currentIndex];
-            const imgElement = document.getElementById('comic-image');
-            const pageInfo = document.getElementById('page-info');
-
-            pageInfo.innerText = `第 ${currentIndex + 1} / ${imageFiles.length} 页`;
-
-            const blob = await fileObject.async("blob");
-            const imageUrl = URL.createObjectURL(blob);
-
-            if (imgElement.src && imgElement.src.startsWith('blob:')) {
-                URL.revokeObjectURL(imgElement.src);
+            // 确保索引不超出范围
+            if (index >= imageFiles.length) {
+                resetViewer("漫画已看完！已为您重置，可重新选择新漫画。");
+                return;
             }
 
-            imgElement.src = imageUrl;
-            imgElement.style.display = "block";
-            
+            currentIndex = index;
+            const imgLeft = document.getElementById('comic-image-left');
+            const imgRight = document.getElementById('comic-image-right');
+            const wrapper = document.getElementById('comic-wrapper');
+            const pageInfo = document.getElementById('page-info');
+
+            // 释放旧的内存占用
+            if (imgLeft.src.startsWith('blob:')) URL.revokeObjectURL(imgLeft.src);
+            if (imgRight.src.startsWith('blob:')) URL.revokeObjectURL(imgRight.src);
+
+            if (isLandscape() && currentIndex + 1 < imageFiles.length) {
+                // 💻 横屏模式：显示双页 (左图 + 右图)
+                wrapper.className = "double-page";
+                imgLeft.style.display = "block";
+                imgRight.style.display = "block";
+
+                // 加载左侧图片
+                const blobLeft = await imageFiles[currentIndex].async("blob");
+                imgLeft.src = URL.createObjectURL(blobLeft);
+
+                // 加载右侧图片
+                const blobRight = await imageFiles[currentIndex + 1].async("blob");
+                imgRight.src = URL.createObjectURL(blobRight);
+
+                pageInfo.innerText = `第 ${currentIndex + 1} - ${currentIndex + 2} / ${imageFiles.length} 页 (双页模式)`;
+            } else {
+                // 📱 竖屏模式（或只剩最后一页）：显示单页
+                wrapper.className = "";
+                imgLeft.style.display = "block";
+                imgRight.style.display = "none"; // 隐藏右边图
+
+                const blob = await imageFiles[currentIndex].async("blob");
+                imgLeft.src = URL.createObjectURL(blob);
+
+                pageInfo.innerText = `第 ${currentIndex + 1} / ${imageFiles.length} 页`;
+            }
+
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        // 上一页逻辑
         function prevPage() {
-            if (currentIndex > 0) {
+            if (currentIndex === 0) return;
+            
+            // 横屏向前跳2页，竖屏向前跳1页
+            if (isLandscape()) {
+                showPage(currentIndex - 2);
+            } else {
                 showPage(currentIndex - 1);
             }
         }
 
+        // 下一页逻辑
         function nextPage() {
-            if (currentIndex < imageFiles.length - 1) {
-                showPage(currentIndex + 1);
+            // 横屏向后跳2页，竖屏向后跳1页
+            if (isLandscape() && currentIndex + 1 < imageFiles.length) {
+                showPage(currentIndex + 2);
             } else {
-                resetViewer("漫画已看完！已为您重置，可重新选择新漫画。");
+                showPage(currentIndex + 1);
             }
         }
 
+        // 点击屏幕图片区域翻页
         function handleContainerClick(event) {
             if (imageFiles.length === 0) return;
             
@@ -201,6 +261,14 @@
             }
         }
 
+        // 监听设备旋转或窗口大小改变，实时刷新单双页效果
+        window.addEventListener('resize', () => {
+            if (imageFiles.length > 0) {
+                showPage(currentIndex);
+            }
+        });
+
+        // 键盘左右方向键监听
         document.addEventListener('keydown', (event) => {
             if (imageFiles.length === 0) return;
             if (event.key === 'ArrowRight') {
