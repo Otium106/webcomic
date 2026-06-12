@@ -19,28 +19,39 @@
         }
         #comic-container {
             width: 100%;
+            height: 100vh; /* 💡 讓容器直接等於整個螢幕的高度 */
             display: flex;
             justify-content: center;
-            align-items: flex-start;
+            align-items: center;   /* 圖片完美居中 */
             cursor: pointer;
             flex-grow: 1;
             user-select: none;
             -webkit-user-select: none;
             -webkit-tap-highlight-color: transparent; 
 
-            /* 上下空隙 */
-            padding-top: 40px; 
-            padding-bottom: 40px; 
+            /* 💡 歸零空隙，確保能完美貼邊 */
+            padding-top: 0px; 
+            padding-bottom: 0px; 
         }
-        #comic-wrapper {
-            display: flex;
+        
+        .comic-img {
+            /* 💡 核心改動：寬高都給 100%，配合 contain 屬性 */
             width: 100%;
-            max-width: 100%;
-            justify-content: center;
+            height: 100%;
+            
+            /* 💡 這是最關鍵的屬性：等比例縮放！
+               它會自動感應，如果是單頁豎屏就讓它左右貼邊（或上下貼邊），
+               絕對不會裁剪任何畫面，也絕對不會變形！ */
+            object-fit: contain; 
+            
+            -webkit-user-drag: none;
         }
-        /* 💡 核心改動 1：雙頁模式下，利用 flex-direction: row-reverse 讓右邊顯示前一頁，左邊顯示後一頁 */
-        .double-page {
-            flex-direction: row-reverse; 
+        
+        .double-page .comic-img {
+            /* 💡 雙頁模式下，寬度各佔一半，高度依然填滿 */
+            width: 50%;
+            height: 100%;
+            object-fit: contain; 
         }
         .comic-img {
             object-fit: contain;
@@ -93,7 +104,7 @@
 
     <div id="comic-container" onclick="handleContainerClick(event)">
         <div id="welcome-tips">
-            <h2>📖 日漫风-智能漫画阅览器</h2>
+            <h2>📖 看什么看</h2>
             <p>请点击下方按钮选择您的漫画 ZIP 压缩包</p>
             <p style="font-size: 13px; color: #ff6b6b;">(已开启：从右往左阅读模式)</p>
         </div>
