@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能横竖屏漫画阅览器</title>
+    <title>日漫风-智能横竖屏阅览器</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         body {
@@ -21,33 +21,34 @@
             width: 100%;
             display: flex;
             justify-content: center;
-            align-items: flex-start; /* 确保从上方排起 */
+            align-items: flex-start;
             cursor: pointer;
             flex-grow: 1;
             user-select: none;
             -webkit-user-select: none;
             -webkit-tap-highlight-color: transparent; 
 
-            /* 💡 上下空隙：数字越大，图片越靠下 */
+            /* 上下空隙 */
             padding-top: 40px; 
             padding-bottom: 40px; 
         }
-        /* 漫画图片外包裹层：控制单双页排列 */
         #comic-wrapper {
             display: flex;
             width: 100%;
             max-width: 100%;
             justify-content: center;
         }
+        /* 💡 核心改動 1：雙頁模式下，利用 flex-direction: row-reverse 讓右邊顯示前一頁，左邊顯示後一頁 */
+        .double-page {
+            flex-direction: row-reverse; 
+        }
         .comic-img {
             object-fit: contain;
             max-height: 85vh;
             -webkit-user-drag: none;
-            /* 默认单页模式：左右贴边 */
             width: 100%;
             max-width: 100%;
         }
-        /* 💡 当处于双页模式时，单张图片只占一半宽度 */
         .double-page .comic-img {
             width: 50%;
             max-width: 50%;
@@ -92,21 +93,21 @@
 
     <div id="comic-container" onclick="handleContainerClick(event)">
         <div id="welcome-tips">
-            <h2>📖 智能横竖屏漫画阅览器</h2>
+            <h2>📖 日漫风-智能漫画阅览器</h2>
             <p>请点击下方按钮选择您的漫画 ZIP 压缩包</p>
-            <p style="font-size: 13px; color: #666;">(竖屏单页显示 / 横屏双页显示)</p>
+            <p style="font-size: 13px; color: #ff6b6b;">(已开启：从右往左阅读模式)</p>
         </div>
         <div id="comic-wrapper" class="">
-            <img id="comic-image-left" class="comic-img" src="" alt="" style="display: none;" />
-            <img id="comic-image-right" class="comic-img" src="" alt="" style="display: none;" />
+            <img id="comic-image-first" class="comic-img" src="" alt="" style="display: none;" />
+            <img id="comic-image-second" class="comic-img" src="" alt="" style="display: none;" />
         </div>
     </div>
 
     <div id="controls">
         <input type="file" id="file-input" accept=".zip" />
         <div id="nav-buttons" style="margin-top: 10px;">
-            <button class="btn" id="prev-btn" onclick="prevPage()" disabled>上一页</button>
-            <button class="btn" id="next-btn" onclick="nextPage()" disabled>下一页</button>
+            <button class="btn" id="next-btn" onclick="nextPage()" disabled>下一页 ◀</button>
+            <button class="btn" id="prev-btn" onclick="prevPage()" disabled>▶ 上一页</button>
         </div>
         <div id="page-info">请选择包含漫画图片的 ZIP 压缩包</div>
     </div>
@@ -115,7 +116,6 @@
         let imageFiles = []; 
         let currentIndex = 0; 
 
-        // 判断当前是否为横屏（宽大于高）
         function isLandscape() {
             return window.innerWidth > window.innerHeight;
         }
@@ -124,10 +124,10 @@
             imageFiles = [];
             currentIndex = 0;
             document.getElementById('file-input').value = "";
-            document.getElementById('comic-image-left').style.display = "none";
-            document.getElementById('comic-image-left').src = "";
-            document.getElementById('comic-image-right').style.display = "none";
-            document.getElementById('comic-image-right').src = "";
+            document.getElementById('comic-image-first').style.display = "none";
+            document.getElementById('comic-image-first').src = "";
+            document.getElementById('comic-image-second').style.display = "none";
+            document.getElementById('comic-image-second').src = "";
             document.getElementById('welcome-tips').style.display = "block";
             document.getElementById('prev-btn').disabled = true;
             document.getElementById('next-btn').disabled = true;
@@ -160,7 +160,6 @@
                     return;
                 }
 
-                // 文件名天然排序
                 imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
 
                 document.getElementById('welcome-tips').style.display = "none";
@@ -174,50 +173,45 @@
             }
         });
 
-        // 核心渲染函数
         async function showPage(index) {
             if (imageFiles.length === 0) return;
             if (index < 0) index = 0;
             
-            // 确保索引不超出范围
             if (index >= imageFiles.length) {
                 resetViewer("漫画已看完！已为您重置，可重新选择新漫画。");
                 return;
             }
 
             currentIndex = index;
-            const imgLeft = document.getElementById('comic-image-left');
-            const imgRight = document.getElementById('comic-image-right');
+            const imgFirst = document.getElementById('comic-image-first');
+            const imgSecond = document.getElementById('comic-image-second');
             const wrapper = document.getElementById('comic-wrapper');
             const pageInfo = document.getElementById('page-info');
 
-            // 释放旧的内存占用
-            if (imgLeft.src.startsWith('blob:')) URL.revokeObjectURL(imgLeft.src);
-            if (imgRight.src.startsWith('blob:')) URL.revokeObjectURL(imgRight.src);
+            if (imgFirst.src.startsWith('blob:')) URL.revokeObjectURL(imgFirst.src);
+            if (imgSecond.src.startsWith('blob:')) URL.revokeObjectURL(imgSecond.src);
 
             if (isLandscape() && currentIndex + 1 < imageFiles.length) {
-                // 💻 横屏模式：显示双页 (左图 + 右图)
+                // 💻 横屏：双页。样式上有 row-reverse，所以 first 在右，second 在左
                 wrapper.className = "double-page";
-                imgLeft.style.display = "block";
-                imgRight.style.display = "block";
+                imgFirst.style.display = "block";
+                imgSecond.style.display = "block";
 
-                // 加载左侧图片
-                const blobLeft = await imageFiles[currentIndex].async("blob");
-                imgLeft.src = URL.createObjectURL(blobLeft);
+                const blobFirst = await imageFiles[currentIndex].async("blob");
+                imgFirst.src = URL.createObjectURL(blobFirst); // 右边显示当前页
 
-                // 加载右侧图片
-                const blobRight = await imageFiles[currentIndex + 1].async("blob");
-                imgRight.src = URL.createObjectURL(blobRight);
+                const blobSecond = await imageFiles[currentIndex + 1].async("blob");
+                imgSecond.src = URL.createObjectURL(blobSecond); // 左边显示下一页
 
-                pageInfo.innerText = `第 ${currentIndex + 1} - ${currentIndex + 2} / ${imageFiles.length} 页 (双页模式)`;
+                pageInfo.innerText = `第 ${currentIndex + 2} - ${currentIndex + 1} / ${imageFiles.length} 页 (右 → 左)`;
             } else {
-                // 📱 竖屏模式（或只剩最后一页）：显示单页
+                // 📱 竖屏：单页正常显示
                 wrapper.className = "";
-                imgLeft.style.display = "block";
-                imgRight.style.display = "none"; // 隐藏右边图
+                imgFirst.style.display = "block";
+                imgSecond.style.display = "none";
 
                 const blob = await imageFiles[currentIndex].async("blob");
-                imgLeft.src = URL.createObjectURL(blob);
+                imgFirst.src = URL.createObjectURL(blob);
 
                 pageInfo.innerText = `第 ${currentIndex + 1} / ${imageFiles.length} 页`;
             }
@@ -225,11 +219,8 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // 上一页逻辑
         function prevPage() {
             if (currentIndex === 0) return;
-            
-            // 横屏向前跳2页，竖屏向前跳1页
             if (isLandscape()) {
                 showPage(currentIndex - 2);
             } else {
@@ -237,9 +228,7 @@
             }
         }
 
-        // 下一页逻辑
         function nextPage() {
-            // 横屏向后跳2页，竖屏向后跳1页
             if (isLandscape() && currentIndex + 1 < imageFiles.length) {
                 showPage(currentIndex + 2);
             } else {
@@ -247,34 +236,34 @@
             }
         }
 
-        // 点击屏幕图片区域翻页
+        // 💡 核心改動 2：點擊事件反轉
         function handleContainerClick(event) {
             if (imageFiles.length === 0) return;
             
             const containerWidth = window.innerWidth;
             const clickX = event.clientX;
 
-            if (clickX > containerWidth / 3) {
+            // 從右往左看：點擊螢幕「左側 2/3 區域」為下一頁，點擊「右側 1/3 區域」為上一頁
+            if (clickX < containerWidth * 0.66) {
                 nextPage();
             } else {
                 prevPage();
             }
         }
 
-        // 监听设备旋转或窗口大小改变，实时刷新单双页效果
-        window.addEventListener('resize', () => {
-            if (imageFiles.length > 0) {
-                showPage(currentIndex);
+        // 💡 核心改動 3：鍵盤方向鍵反轉 (左箭頭下一頁，右箭頭上一頁)
+        document.addEventListener('keydown', (event) => {
+            if (imageFiles.length === 0) return;
+            if (event.key === 'ArrowLeft') {
+                nextPage();
+            } else if (event.key === 'ArrowRight') {
+                prevPage();
             }
         });
 
-        // 键盘左右方向键监听
-        document.addEventListener('keydown', (event) => {
-            if (imageFiles.length === 0) return;
-            if (event.key === 'ArrowRight') {
-                nextPage();
-            } else if (event.key === 'ArrowLeft') {
-                prevPage();
+        window.addEventListener('resize', () => {
+            if (imageFiles.length > 0) {
+                showPage(currentIndex);
             }
         });
     </script>
