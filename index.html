@@ -28,8 +28,7 @@
             user-select: none;
             -webkit-user-select: none;
             -webkit-tap-highlight-color: transparent; 
-            padding-top: 0px; 
-            padding-bottom: 0px; 
+            position: relative; /* 允许内部元素绝对定位 */
         }
         #comic-wrapper {
             display: flex;
@@ -38,7 +37,7 @@
             justify-content: center;
             height: 100vh; /* 强制包裹层高度填满，让图片可以等比例放大 */
         }
-        /* 💡 双页模式下，利用 row-reverse 确保右边显示前一页（第1页），左边显示后一页（第2页） */
+        /* 双页模式下，利用 row-reverse 确保右边显示前一页（第1页），左边显示后一页（第2页） */
         .double-page {
             flex-direction: row-reverse; 
         }
@@ -50,16 +49,26 @@
             width: 100%;
             max-width: 100%;
         }
-        /* 💡 双页横屏模式：两张图横向并排，各占一半宽度 */
+        /* 双页横屏模式：两张图横向并排，各占一半宽度 */
         .double-page .comic-img {
             width: 50%;
             max-width: 50%;
         }
+        /* 💡 核心修正：使用绝对定位撑满整个屏幕，确保欢迎文字永远在真正的物理中心点 */
         #welcome-tips {
-            padding: 60px 20px;
             text-align: center;
             color: #aaa;
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
+            height: 100%; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+            padding: 20px;
         }
         #controls {
             margin: 20px 0;
@@ -132,7 +141,7 @@
             document.getElementById('comic-image-first').src = "";
             document.getElementById('comic-image-second').style.display = "none";
             document.getElementById('comic-image-second').src = "";
-            document.getElementById('welcome-tips').style.display = "block";
+            document.getElementById('welcome-tips').style.display = "flex"; // 恢复显示
             document.getElementById('prev-btn').disabled = true;
             document.getElementById('next-btn').disabled = true;
             document.getElementById('page-info').innerText = message || "请选择包含漫画图片的 ZIP 压缩包";
@@ -167,7 +176,7 @@
                 // 文件名自然排序
                 imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
 
-                document.getElementById('welcome-tips').style.display = "none";
+                document.getElementById('welcome-tips').style.display = "none"; // 成功后隐藏
                 document.getElementById('prev-btn').disabled = false;
                 document.getElementById('next-btn').disabled = false;
                 showPage(0);
